@@ -1,0 +1,33 @@
+def cria_conta(numero, titular, saldo, limite):
+ 
+    conta = {"numero": numero, "titular": titular, "saldo": saldo, "limite": limite}
+    return conta
+
+def deposita(conta, valor):
+
+    conta['saldo'] += valor
+
+def saca(conta, valor):
+
+    
+    conta['saldo'] -= valor
+
+def extrato(conta):
+   
+    print("Número: {} \nSaldo: {}".format(conta['numero'], conta['saldo']))
+
+# --- Testando as funcionalidades ---
+if __name__ == "__main__":
+    print("--- Testes de Funcionalidade ---")
+
+    print("\nCriando a conta de João...")
+    conta = cria_conta('123-7', 'João', 500.0, 1000.0)
+    extrato(conta)
+
+    print("\nDepositando R$ 50.0...")
+    deposita(conta, 50.0)
+    extrato(conta)
+
+    print("\nSacando R$ 20.0...")
+    saca(conta, 20.0)
+    extrato(conta)
