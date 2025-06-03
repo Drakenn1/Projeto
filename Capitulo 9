@@ -1,0 +1,231 @@
+#P1: Modificador de Visibilidade "Privado" (dois underscores: __)
+
+
+class ContaPrivada:
+
+    def __init__(self, numero, titular, saldo, limite=1000.0):
+        self.__numero = numero    
+        self.__titular = titular 
+        self.__saldo = saldo      
+        self.__limite = limite    
+
+    def __depositar(self, valor):
+    
+        if valor > 0:
+            self.__saldo += valor
+            print(f"Depósito de R${valor:.2f} realizado. Novo saldo: R${self.__saldo:.2f}")
+        else:
+            print("Valor de depósito inválido.")
+
+    def __sacar(self, valor):
+        
+        if self.__saldo >= valor:
+            self.__saldo -= valor
+            print(f"Saque de R${valor:.2f} realizado. Novo saldo: R${self.__saldo:.2f}")
+        else:
+            print("Saldo insuficiente.")
+
+    def obter_saldo_interno(self):
+      
+        return self.__saldo
+
+print("--- Demonstração de Atributos 'Privados' (Name Mangling) ---")
+conta_privada = ContaPrivada("12345-6", "Ana Silva", 1500.0)
+
+# Tentando ler um atributo "privado" diretamente
+print("\nTentando ler conta_privada.__numero:")
+try:
+    print(conta_privada.__numero)
+except AttributeError as e:
+    print(f"Erro esperado: {e}")
+
+# Tentando modificar um atributo "privado" diretamente
+print("\nTentando modificar conta_privada.__numero = '99999-9':")
+conta_privada.__numero = "99999-9" #cria um NOVO atributo público na instância
+print(f"conta_privada.__numero (novo atributo público): {conta_privada.__numero}")
+
+print("\nAcessando o atributo original usando o nome mangled (conta_privada._ContaPrivada__numero):")
+print(f"Número original (mangled): {conta_privada._ContaPrivada__numero}") # Saída: 12345-6
+
+print("\nModificando o atributo original usando o nome mangled:")
+conta_privada._ContaPrivada__numero = "77777-7"
+print(f"Novo número (mangled): {conta_privada._ContaPrivada__numero}") # Saída: 77777-7
+
+print("\nTentando chamar um método 'privado' diretamente (conta_privada.__depositar):")
+try:
+    conta_privada.__depositar(100)
+except AttributeError as e:
+    print(f"Erro esperado: {e}")
+
+print("\nChamando o método 'privado' usando o nome mangled (conta_privada._ContaPrivada__depositar):")
+conta_privada._ContaPrivada__depositar(100)
+print(f"Saldo após depósito via mangled: R${conta_privada.obter_saldo_interno():.2f}")
+
+print("\nÉ boa prática acessar atributos/métodos mangled diretamente? NÃO. Quebra a intenção de encapsulamento.")
+
+
+#P2: Convenção "Protegido" (underscore: _) e propriedades (@property)
+
+class Conta:
+  
+    # Atributo de classe para o identificador sequencial (Opcional)
+    identificador_sequencial = 1
+
+    def __init__(self, numero, titular, saldo, limite=1000.0):
+        self._numero = numero      
+        self._titular = titular    
+        self._saldo = saldo        
+        self._limite = limite      
+        #Opcional: Adiciona um identificador único para cada instância
+        self._identificador = Conta.identificador_sequencial
+        Conta.identificador_sequencial += 1
+
+    @property
+    def numero(self):
+        
+        return self._numero
+
+    @property
+    def titular(self):
+        
+        return self._titular
+
+    @property
+    def saldo(self):
+      
+        return self._saldo
+
+    @saldo.setter
+    def saldo(self, novo_saldo):
+       
+        if novo_saldo < 0:
+            print("Erro: Saldo não pode ser negativo!")
+        else:
+            self._saldo = novo_saldo
+
+    @property
+    def limite(self):
+        
+        return self._limite
+
+    @limite.setter
+    def limite(self, novo_limite):
+        
+        if novo_limite < 0:
+            print("Erro: Limite não pode ser negativo!")
+        else:
+            self._limite = novo_limite
+
+    @property
+    def identificador(self):
+        
+        return self._identificador
+
+    #Outros métodos da classe
+    def depositar(self, valor):
+       
+        if valor > 0:
+            self.saldo = self.saldo + valor # Usa o setter da propriedade 'saldo'
+            print(f"Depósito de R${valor:.2f} realizado. Novo saldo: R${self.saldo:.2f}")
+        else:
+            print("Valor de depósito inválido.")
+
+    def sacar(self, valor):
+       
+        if self.saldo + self.limite >= valor:
+            self.saldo = self.saldo - valor # Usa o setter da propriedade 'saldo'
+            print(f"Saque de R${valor:.2f} realizado. Novo saldo: R${self.saldo:.2f}")
+        else:
+            print("Saldo insuficiente ou limite excedido.")
+
+    def extrato(self):
+       
+        print(f"Extrato da Conta {self.numero} (ID: {self.identificador}):")
+        print(f"Titular: {self.titular}")
+        print(f"Saldo: R${self.saldo:.2f}")
+        print(f"Limite: R${self.limite:.2f}")
+
+print("\n--- Demonstração de Atributos 'Protegidos' e Propriedades (@property) ---")
+conta_protegida = Conta("78901-2", "João Ninguém", 2000.0)
+
+#Acessando atributos via propriedades
+print(f"Número da conta (via property): {conta_protegida.numero}")
+print(f"Saldo inicial (via property): R${conta_protegida.saldo:.2f}")
+
+#Modificando saldo via setter da propriedade
+print("\nTentando definir saldo = 1800.0:")
+conta_protegida.saldo = 1800.0
+print(f"Novo saldo (via property): R${conta_protegida.saldo:.2f}")
+
+print("\nTentando definir saldo = -500.0:")
+conta_protegida.saldo = -500.0 # Isso aciona a validação no setter
+print(f"Saldo após tentativa de negativo: R${conta_protegida.saldo:.2f}")
+
+print("\nDemonstrando acesso direto ao atributo 'protegido' (_numero):")
+print(f"Acessando diretamente conta_protegida._numero: {conta_protegida._numero}")
+conta_protegida._numero = '50' # Modificando diretamente (possível, mas não recomendado)
+print(f"Modificado diretamente conta_protegida._numero: {conta_protegida._numero}")
+print("Observação: Acessar/modificar atributos prefixados com '_' diretamente é possível, mas não é a prática recomendada.")
+print("Use as propriedades (@property) para um acesso controlado e validado.")
+
+# Testando outros métodos
+print("\nTestando métodos depositar e sacar:")
+conta_protegida.depositar(500)
+conta_protegida.sacar(2000)
+conta_protegida.extrato()
+
+
+#P3: Restringindo a Criação de Atributos com __slots__
+
+class ContaComSlots:
+
+    __slots__ = ['_numero', '_titular', '_saldo', '_limite', '_identificador']
+    identificador_sequencial = 1 # Para a parte opcional
+
+    def __init__(self, numero, titular, saldo, limite=1000.0):
+        self._numero = numero
+        self._titular = titular
+        self._saldo = saldo
+        self._limite = limite
+        self._identificador = ContaComSlots.identificador_sequencial
+        ContaComSlots.identificador_sequencial += 1
+
+    @property
+    def saldo(self):
+        return self._saldo
+
+    @saldo.setter
+    def saldo(self, novo_saldo):
+        if novo_saldo < 0:
+            print("Erro: Saldo não pode ser negativo!")
+        else:
+            self._saldo = novo_saldo
+
+    @property
+    def identificador(self):
+        return self._identificador
+
+print("\nDemonstração de __slots__ ")
+conta_com_slots = ContaComSlots("00000-0", "José da Silva", 500.0)
+
+print(f"Saldo da conta com slots: R${conta_com_slots.saldo:.2f}")
+
+print("\nTentando adicionar um atributo 'agencia' não definido em __slots__:")
+try:
+    conta_com_slots.agencia = "1234"
+except AttributeError as e:
+    print(f"Erro esperado: {e}")
+
+print(f"A conta com slots possui __dict__? {'__dict__' in dir(conta_com_slots)}")
+
+
+# P4: Atributo Identificador Único (Opcional)
+
+print("\nDemonstração do Atributo Identificador Único")
+conta_id_1 = Conta("ID1", "Primeira Conta", 100.0)
+conta_id_2 = Conta("ID2", "Segunda Conta", 200.0)
+conta_id_3 = ContaComSlots("ID3", "Terceira Conta (slots)", 300.0)
+
+print(f"ID da Conta ID1: {conta_id_1.identificador}") # Saída: 1
+print(f"ID da Conta ID2: {conta_id_2.identificador}") # Saída: 2
+print(f"ID da Conta ID3: {conta_id_3.identificador}") # Saída: 3
