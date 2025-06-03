@@ -1,0 +1,151 @@
+class Conta:
+    def __init__(self, numero, titular, saldo, limite=1000.0):
+        self.numero = numero
+        self.titular = titular  # Pode ser um objeto Cliente
+        self.saldo = saldo
+        self.limite = limite
+
+    def deposita(self, valor):
+        self.saldo += valor
+
+    def saca(self, valor):
+        if self.saldo < valor:
+            return False
+        else:
+            self.saldo -= valor
+            return True
+
+    def extrato(self):
+        # Verifica se o titular é um objeto Cliente ou uma string
+        if isinstance(self.titular, Cliente):
+            print(f"Número: {self.numero}")
+            print(f"Titular: {self.titular.nome} {self.titular.sobrenome} (CPF: {self.titular.cpf})")
+            print(f"Saldo: R$ {self.saldo:.2f}")
+        else:
+            print(f"Número: {self.numero}")
+            print(f"Titular: {self.titular}")
+            print(f"Saldo: R$ {self.saldo:.2f}")
+
+    def transfere_para(self, destino, valor):
+        retirou = self.saca(valor)
+        if not retirou:
+            return False
+        else:
+            destino.deposita(valor)
+            return True
+
+class Cliente:
+    def __init__(self, nome, sobrenome, cpf):
+        self.nome = nome
+        self.sobrenome = sobrenome
+        self.cpf = cpf
+
+class Data:
+    def __init__(self, dia, mes, ano):
+        self.dia = dia
+        self.mes = mes
+        self.ano = ano
+
+    def formatada(self):
+        return f"{self.dia:02d}/{self.mes:02d}/{self.ano}"
+
+class Historico:
+    def __init__(self):
+        self.transacoes = []
+
+    def adiciona_transacao(self, transacao):
+        self.transacoes.append(transacao)
+
+    def imprime_historico(self):
+        print("Histórico de Transações:")
+        for transacao in self.transacoes:
+            print(transacao)
+
+print(f"Número da conta do João: {conta_joao.numero}") # 123-4
+print(f"Titular da conta do João: {conta_joao.titular}") # João
+
+#Testando os Métodos da Classe Conta
+
+print("\nTestes de Métodos da Conta João")
+conta_joao.deposita(50.0)
+conta_joao.extrato() # Número: 123-4 \nSaldo: 170.00
+
+conta_joao.saca(20.0)
+conta_joao.extrato() # Número: 123-4 \nSaldo: 150.00
+
+conta_joao.saca(200.0) # Tentando sacar mais do que o saldo
+conta_joao.extrato() # Saldo permanece 150.00
+
+conta_maria = Conta('567-8', 'Maria', 500.0, 2000.0)
+
+print("\n--- Testes de Transferência ---")
+print("Saldo inicial do João:")
+conta_joao.extrato()
+print("Saldo inicial da Maria:")
+conta_maria.extrato()
+
+transferencia_sucesso = conta_joao.transfere_para(conta_maria, 100.0)
+if transferencia_sucesso:
+    print("\nTransferência de 100.0 de João para Maria realizada com sucesso!")
+    print("Novo saldo do João:")
+    conta_joao.extrato() # Saldo: 50.00
+    print("Novo saldo da Maria:")
+    conta_maria.extrato() # Saldo: 600.00
+else:
+    print("\nFalha na transferência de João para Maria.")
+
+transferencia_falha = conta_joao.transfere_para(conta_maria, 100.0) # João só tem 50
+if transferencia_falha:
+    print("\nTransferência de 100.0 de João para Maria realizada com sucesso!")
+else:
+    print("\nFalha na transferência de João para Maria (saldo insuficiente).")
+    print("Saldo do João após tentativa de transferência:")
+    conta_joao.extrato()
+
+
+#Testes Opcionais
+
+print("\n--- Testes com Cliente, Data e Histórico (Opcional) ---")
+
+# Criando um cliente
+cliente_ana = Cliente("Ana", "Silva", "111.222.333-44")
+print(f"Nome do cliente: {cliente_ana.nome} {cliente_ana.sobrenome}")
+
+# Criando uma conta com um cliente como titular
+conta_ana = Conta('987-6', cliente_ana, 800.0)
+print("\nExtrato da conta da Ana (com objeto Cliente):")
+conta_ana.extrato()
+
+# Criando uma data
+data_abertura = Data(15, 6, 2024)
+print(f"Data de abertura formatada: {data_abertura.formatada()}")
+
+# Criando um histórico e adicionando transações
+historico_joao = Historico()
+historico_joao.adiciona_transacao("Depósito de 50.00")
+historico_joao.adiciona_transacao("Saque de 20.00")
+historico_joao.adiciona_transacao("Transferência de 100.00 para Maria")
+
+print("\nHistórico de transações do João:")
+historico_joao.imprime_historico()
+
+# --- Perguntas Opcionais ---
+
+# Podemos criar uma Conta sem um Cliente?
+# Sim, como visto nos exemplos iniciais (`conta_joao` que tem 'João' como string).
+# Se o atributo `titular` for **tipado** como um objeto `Cliente` (o que não fizemos aqui explicitamente, Python é dinâmico),
+# então não seria possível criar uma Conta sem um Cliente.
+# Na nossa implementação, `titular` pode ser uma string ou um objeto `Cliente`.
+
+# E um Cliente sem uma Conta?
+# Sim, um objeto `Cliente` é uma entidade independente que pode existir sem estar associado a uma `Conta` no momento da sua criação.
+# Um cliente pode existir e, futuramente, abrir uma conta, ou não.
+
+# Faz sentido criar um objeto do tipo Historico sem uma Conta?
+# Em termos de modelagem orientada a objetos, um `Historico` está intrinsecamente ligado a uma `Conta`.
+# Um histórico de transações, por sua própria natureza, pertence a uma conta específica.
+# Criar um `Historico` sem uma `Conta` pode levar a um `Historico` "órfão", sem um propósito claro.
+# Seria mais comum e coerente que o `Historico` fosse um atributo da classe `Conta`,
+# ou que, ao menos, fosse sempre instanciado em relação a uma conta específica,
+# por exemplo, `minha_conta.historico = Historico()`.
+# Isso garante que cada histórico está associado a uma conta e facilita a manutenção e compreensão do código.
