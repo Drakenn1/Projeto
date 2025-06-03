@@ -1,0 +1,439 @@
+import abc
+from collections.abc import MutableSequence
+
+class Cliente:
+    def __init__(self, nome, sobrenome, cpf):
+        self.nome = nome
+        self.sobrenome = sobrenome
+        self.cpf = cpf
+
+    def __str__(self):
+        return f"{self.nome} {self.sobrenome} (CPF: {self.cpf})"
+
+class Historico:
+    def __init__(self):
+        self.transacoes = []
+
+    def adiciona(self, transacao):
+        self.transacoes.append(transacao)
+
+    def imprime(self):
+        for transacao in self.transacoes:
+            print(transacao)
+
+class Data:
+    def __init__(self, dia, mes, ano):
+        self.dia = dia
+        self.mes = mes
+        self.ano = ano
+
+    def __str__(self):
+        return f"{self.dia:02d}/{self.mes:02d}/{self.ano}"
+
+class SaldoInsuficienteError(RuntimeError):
+    pass
+
+class Conta(abc.ABC):
+    __slots__ = ['_cliente', '_numero', '_titular', '_saldo', '_limite', '_data_abertura', '_historico']
+
+    def __init__(self, cliente_obj, numero, titular_str, saldo=0, limite=1000.0, data_abertura_obj=None):
+        self._cliente = cliente_obj
+        self._numero = numero
+        self._titular = titular_str
+        self._saldo = saldo
+        self._limite = limite
+        self._data_abertura = data_abertura_obj if data_abertura_obj is not None else Data(1, 1, 2000)
+        self._historico = Historico()
+        self._historico.adiciona(f"conta aberta em {self._data_abertura}")
+        self._historico.adiciona(f"saldo inicial de {self._saldo}")
+
+    def deposita(self, valor):
+        if valor < 0:
+            raise ValueError('Você tentou depositar um valor negativo.')
+        self._saldo += valor
+        self._historico.adiciona(f"depósito de {valor}")
+
+    def saca(self, valor):
+        if valor < 0:
+            raise ValueError('Você tentou sacar um valor negativo.')
+        if self._saldo < valor:
+            raise SaldoInsuficienteError('Saldo insuficiente.')
+        self._saldo -= valor
+        self._historico.adiciona(f"saque de {valor}")
+        return True
+
+    def extrato(self):
+        print(f"numero: {self._numero}")
+        print(f"saldo: {self._saldo}")
+        print(f"titular: {self._titular}")
+        print(f"data de abertura: {self._data_abertura}")
+
+    def transfere_para(self, destino, valor):
+        try:
+            retirou = self.saca(valor)
+            if not retirou:
+                return False
+            else:
+                destino.deposita(valor)
+                self._historico.adiciona(f"Transferência de {valor} para conta {destino._numero}")
+                return True
+        except (ValueError, SaldoInsuficienteError) as e:
+            self._historico.adiciona(f"Transferência de {valor} falhou: {e}")
+            return False
+
+    @abc.abstractmethod
+    def atualiza(self, taxa):
+        pass
+
+    @property
+    def cliente(self):
+        return self._cliente
+
+    @property
+    def numero(self):
+        return self._numero
+
+    @property
+    def titular(self):
+        return self._titular
+
+    @property
+    def saldo(self):
+        return self._saldo
+
+    @saldo.setter
+    def saldo(self, valor):
+        if valor < 0:
+            raise ValueError("O saldo não pode ser negativo.")
+        self._saldo = valor
+
+    @property
+    def limite(self):
+        return self._limite
+
+    @limite.setter
+    def limite(self, valor):
+        if valor < 0:
+            raise ValueError("O limite não pode ser negativo.")
+        self._limite = valor
+
+    @property
+    def data_abertura(self):
+        return self._data_abertura
+
+    @property
+    def historico(self):
+        return self._historico
+
+    def __str__(self):
+        return f"Dados da Conta: \nNumero: {self._numero} \nTitular: {self._titular} \nSaldo: {self._saldo} \nLimite:{self._limite}"
+
+class TributavelMixIn:
+    def get_valor_imposto(self):
+        pass
+
+class ContaCorrente(Conta, TributavelMixIn):
+    def atualiza(self, taxa):
+        self._saldo += self._saldo * taxa * 2
+        return self._saldo
+
+    def deposita(self, valor):
+        if valor < 0:
+            raise ValueError('Você tentou depositar um valor negativo.')
+        self._saldo += valor - 0.10
+        self._historico.adiciona(f"depósito de {valor} (desconto de 0.10 de taxa)")
+
+    def saca(self, valor):
+        if valor < 0:
+            raise ValueError('Você tentou sacar um valor negativo.')
+        if self._saldo < valor:
+            raise SaldoInsuficienteError('Saldo insuficiente.')
+        self._saldo -= (valor + 0.10)
+        self._historico.adiciona(f"saque de {valor} (desconto de 0.10 de taxa)")
+        return True
+
+    def get_valor_imposto(self):
+        return self._saldo * 0.01
+
+class ContaPoupanca(Conta):
+    def atualiza(self, taxa):
+        self._saldo += self._saldo * taxa * 3
+        return self._saldo
+
+    def deposita(self, valor):
+        if valor < 0:
+            raise ValueError('Você tentou depositar um valor negativo.')
+        self._saldo += valor
+        self._historico.adiciona(f"depósito de {valor}")
+
+class ContaInvestimento(Conta):
+    def atualiza(self, taxa):
+        self._saldo += self._saldo * taxa * 5
+        return self._saldo
+
+class SeguroDeVida(TributavelMixIn):
+    def __init__(self, valor, titular, numero_apolice):
+        self._valor = valor
+        self._titular = titular
+        self._numero_apolice = numero_apolice
+
+    def get_valor_imposto(self):
+        return 50 + self._valor * 0.05
+
+class AtualizadorDeContas:
+    def __init__(self, selic, saldo_total=0):
+        self._selic = selic
+        self._saldo_total = saldo_total
+
+    @property
+    def selic(self):
+        return self._selic
+
+    @property
+    def saldo_total(self):
+        return self._saldo_total
+
+    def roda(self, conta):
+        print(f"Saldo da Conta: {conta.saldo}")
+        self._saldo_total += conta.atualiza(self._selic)
+        print(f"Saldo Final: {conta.saldo}")
+
+class ManipuladorDeTributaveis:
+    def calcula_impostos(self, lista_tributaveis):
+        total = 0
+        for t in lista_tributaveis:
+            total += t.get_valor_imposto()
+        return total
+
+class CaixaEletronico:
+    def depositar(self, conta, valor):
+        try:
+            conta.deposita(valor)
+            print(f"Depósito de {valor} realizado com sucesso na conta {conta.numero}.")
+        except ValueError as e:
+            print(f"Erro ao depositar na conta {conta.numero}: {e}")
+
+    def sacar(self, conta, valor):
+        try:
+            conta.saca(valor)
+            print(f"Saque de {valor} realizado com sucesso na conta {conta.numero}.")
+        except (ValueError, SaldoInsuficienteError) as e:
+            print(f"Erro ao sacar da conta {conta.numero}: {e}")
+
+class Contas(MutableSequence):
+    _dados = []
+
+    def __len__(self):
+        return len(self._dados)
+
+    def __getitem__(self, posicao):
+        return self._dados[posicao]
+
+    def __setitem__(self, posicao, valor):
+        if isinstance(valor, Conta):
+            self._dados[posicao] = valor
+        else:
+            raise TypeError("valor atribuído não é uma Conta")
+
+    def __delitem__(self, posicao):
+        del self._dados[posicao]
+
+    def insert(self, posicao, valor):
+        if isinstance(valor, Conta):
+            return self._dados.insert(posicao, valor)
+        else:
+            raise TypeError('valor inserido não é uma Conta')
+
+    def append(self, valor):
+        self.insert(len(self._dados), valor)
+
+if __name__ == '__main__':
+    print("Tentando instanciar Conta (abstrata)")
+    try:
+        cliente_abstrato = Cliente('Cliente', 'Abstrato', '000.000.000-00')
+        data_abstrata = Data(1, 1, 2023)
+        c_abstrata = Conta(cliente_abstrato, '000-0', 'Cliente Abstrato', 0.0, 0.0, data_abstrata)
+        print("Conta abstrata instanciada com sucesso (isso não deveria acontecer).")
+    except TypeError as e:
+        print(f"Erro ao instanciar Conta (esperado): {e}")
+
+    print("\n--- Instanciando ContaCorrente e ContaPoupanca ---")
+    cliente_cc = Cliente('João', 'Silva', '123.456.789-00')
+    data_cc = Data(1, 1, 2024)
+    cc = ContaCorrente(cliente_cc, '123-4', 'João Silva', 1000.0, 1000.0, data_cc)
+
+    cliente_cp = Cliente('José', 'Santos', '987.654.321-00')
+    data_cp = Data(1, 2, 2024)
+    cp = ContaPoupanca(cliente_cp, '123-5', 'José Santos', 1000.0, 1000.0, data_cp)
+
+    print(f"Saldo inicial Conta Corrente: {cc.saldo}")
+    cc.atualiza(0.01)
+    print(f"Saldo atualizado Conta Corrente: {cc.saldo}")
+
+    print(f"Saldo inicial Conta Poupança: {cp.saldo}")
+    cp.atualiza(0.01)
+    print(f"Saldo atualizado Conta Poupança: {cp.saldo}")
+
+    print("\nTeste de ContaInvestimento (sem implementar atualiza)")
+    class ContaInvestimentoSemAtualiza(Conta):
+        pass
+
+    try:
+        cliente_ci_sem_atualiza = Cliente('Maria', 'Sem Atualiza', '111.111.111-11')
+        data_ci_sem_atualiza = Data(1, 4, 2024)
+        ci_sem_atualiza = ContaInvestimentoSemAtualiza(cliente_ci_sem_atualiza, '123-6', 'Maria Sem Atualiza', 1000.0, 1000.0, data_ci_sem_atualiza)
+        print("ContaInvestimento sem atualiza() instanciada (isso não deveria acontecer).")
+    except TypeError as e:
+        print(f"Erro ao instanciar ContaInvestimento sem atualiza() (esperado): {e}")
+
+    print("\nTeste de ContaInvestimento (com atualiza)")
+    cliente_ci = Cliente('Maria', 'Investimento', '222.222.222-22')
+    data_ci = Data(1, 5, 2024)
+    ci = ContaInvestimento(cliente_ci, '123-7', 'Maria Investimento', 1000.0, 1000.0, data_ci)
+
+    print(f"Saldo inicial Conta Investimento: {ci.saldo}")
+    ci.deposita(1000.0)
+    print(f"Saldo após depósito: {ci.saldo}")
+    ci.atualiza(0.01)
+    print(f"Saldo atualizado Conta Investimento: {ci.saldo}")
+
+    print("\n-Teste completo com AtualizadorDeContas")
+    adc_final = AtualizadorDeContas(0.01)
+
+    adc_final.roda(cc)
+    adc_final.roda(cp)
+    adc_final.roda(ci)
+
+    print(f'Saldo total do Atualizador (final): {adc_final.saldo_total}')
+
+    print("\nTeste de Mix-ins e ManipuladorDeTributaveis")
+    cc1 = ContaCorrente(Cliente('João', 'Testador', '111.111.111-11'), '123-4', 'João Testador', 1000.0, 1000.0, Data(1, 1, 2024))
+    cc2 = ContaCorrente(Cliente('José', 'Testador', '222.222.222-22'), '123-5', 'José Testador', 1500.0, 1000.0, Data(1, 2, 2024))
+    seguro1 = SeguroDeVida(1000.0, 'José', '345-77')
+    seguro2 = SeguroDeVida(2000.0, 'Maria', '237-98')
+
+    lista_tributaveis = []
+    lista_tributaveis.append(cc1)
+    lista_tributaveis.append(cc2)
+    lista_tributaveis.append(seguro1)
+    lista_tributaveis.append(seguro2)
+
+    manipulador = ManipuladorDeTributaveis()
+    total = manipulador.calcula_impostos(lista_tributaveis)
+
+    print(f"Total de impostos cobrados: {total}")
+
+    print("\nTestes de Exceções")
+    cc_excecao = ContaCorrente(Cliente('Cliente', 'Exceção', '000.000.000-00'), 'EXC-1', 'Cliente Exceção', 1000.0, 1000.0, Data(1, 1, 2025))
+
+    print("\nTentando sacar um valor negativo:")
+    valor_negativo_saque = -100.0
+    try:
+        cc_excecao.saca(valor_negativo_saque)
+        print(f'Saque de {valor_negativo_saque} realizado com sucesso (não deveria acontecer).')
+    except ValueError as e:
+        print(f'Erro ao sacar: {e}')
+
+    print("\nTentando sacar um valor maior que o saldo:")
+    valor_maior_que_saldo = 5000.0
+    try:
+        cc_excecao.saca(valor_maior_que_saldo)
+        print(f'Saque de {valor_maior_que_saldo} realizado com sucesso (não deveria acontecer).')
+    except ValueError as e:
+        print(f'Erro ao sacar: {e}')
+    except SaldoInsuficienteError as e:
+        print(f'Erro ao sacar: {e}')
+
+    print("\nTentando depositar um valor negativo:")
+    valor_negativo_deposito = -50.0
+    try:
+        cc_excecao.deposita(valor_negativo_deposito)
+        print(f'Depósito de {valor_negativo_deposito} realizado com sucesso (não deveria acontecer).')
+    except ValueError as e:
+        print(f'Erro ao depositar: {e}')
+
+    print("\nTestando depósito negativo em ContaPoupanca:")
+    cp_excecao = ContaPoupanca(Cliente('Poupador', 'Exceção', '111.111.111-11'), 'EXC-2', 'Poupador Exceção', 500.0, 1000.0, Data(1, 1, 2025))
+    try:
+        cp_excecao.deposita(-100.0)
+        print("Depósito negativo em poupança realizado (não deveria acontecer).")
+    except ValueError as e:
+        print(f"Erro ao depositar em Conta Poupança: {e}")
+
+    print("\nTestando saque negativo em Conta (genérica, via ContaCorrente para teste):")
+    c_base_saca_test = ContaCorrente(Cliente('Base', 'Saca Teste', '333.333.333-33'), 'BASE-SACA', 'Base Saca Teste', 200.0, 500.0, Data(1, 1, 2025))
+    try:
+        c_base_saca_test.saca(-50.0)
+        print("Saque negativo na conta base realizado (não deveria acontecer).")
+    except ValueError as e:
+        print(f"Erro ao sacar na conta base: {e}")
+
+    print("\nTestando saque insuficiente em Conta (genérica, via ContaCorrente para teste):")
+    try:
+        c_base_saca_test.saca(300.0)
+        print("Saque insuficiente na conta base realizado (não deveria acontecer).")
+    except SaldoInsuficienteError as e:
+        print(f"Erro ao sacar na conta base: {e}")
+
+    print("\nTeste da Classe CaixaEletronico")
+    caixa = CaixaEletronico()
+    cliente_caixa = Cliente('Cliente', 'Caixa', '444.444.444-44')
+    data_caixa = Data(1, 6, 2025)
+    conta_caixa = ContaCorrente(cliente_caixa, 'CAIXA-1', 'Cliente Caixa', 500.0, 1000.0, data_caixa)
+
+    print(f"\nSaldo inicial da conta para teste do caixa: {conta_caixa.saldo}")
+
+    caixa.depositar(conta_caixa, 200.0)
+    print(f"Saldo após depósito via caixa: {conta_caixa.saldo}")
+
+    caixa.sacar(conta_caixa, 100.0)
+    print(f"Saldo após saque via caixa: {conta_caixa.saldo}")
+
+    caixa.depositar(conta_caixa, -30.0)
+    print(f"Saldo após tentativa de depósito negativo via caixa: {conta_caixa.saldo}")
+
+    caixa.sacar(conta_caixa, 10000.0)
+    print(f"Saldo após tentativa de saque insuficiente via caixa: {conta_caixa.saldo}")
+
+    caixa.sacar(conta_caixa, -20.0)
+    print(f"Saldo após tentativa de saque negativo via caixa: {conta_caixa.saldo}")
+
+    print("\nTeste da Classe Contas (MutableSequence)")
+    contas = Contas()
+
+    contas_data = [
+        ['123-1', 'Cliente Um', '1200.0', '1000.0'],
+        ['123-2', 'Cliente Dois', '2200.0', '1500.0'],
+        ['123-3', 'Cliente Três', '1500.0', '800.0'],
+        ['123-4', 'Cliente Quatro', '5300.0', '2000.0'],
+        ['123-5', 'Cliente Cinco', '7800.0', '3000.0'],
+        ['123-6', 'Cliente Seis', '1700.0', '1200.0'],
+        ['123-7', 'Cliente Sete', '2300.0', '1800.0'],
+        ['123-8', 'Cliente Oito', '8000.0', '4000.0'],
+        ['123-9', 'Cliente Nove', '4600.0', '2500.0'],
+        ['123-10', 'Cliente Dez', '9400.0', '5000.0']
+    ]
+
+    for linha in contas_data:
+        cliente_temp = Cliente(linha[1].split()[0], linha[1].split()[1] if len(linha[1].split()) > 1 else '', '000.000.000-00')
+        conta = ContaCorrente(cliente_temp, linha[0], linha[1], float(linha[2]), float(linha[3]), Data(1, 1, 2024))
+        contas.append(conta)
+
+    print('saldo - imposto')
+    for c in contas:
+        print(f'{c.saldo} - {c.get_valor_imposto()}')
+
+    print(f"\nNúmero de contas na coleção: {len(contas)}")
+    print(f"Primeira conta: {contas[0].numero}")
+    contas[0].saldo = 1300.0
+    print(f"Saldo da primeira conta após alteração: {contas[0].saldo}")
+
+    try:
+        contas.append("Não é uma conta")
+    except TypeError as e:
+        print(f"\nErro ao tentar adicionar algo que não é Conta: {e}")
+
+    try:
+        contas[1] = "Outro valor inválido"
+    except TypeError as e:
+        print(f"Erro ao tentar atribuir algo que não é Conta: {e}")
